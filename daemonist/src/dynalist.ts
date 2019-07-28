@@ -30,14 +30,18 @@ export namespace Dynalist {
     H3
   }
 
+  export interface NodeKey {
+    documentId: string;
+    nodeId: string;
+  }
   export interface Node {
-    id: string;
+    key: NodeKey;
     content: string;
     note: string;
-    created: number;
-    modified: number;
-    children: string[];
+    created: Date;
+    modified: Date;
 
+    children?: NodeKey[];
     checked?: boolean;
     checkbox?: boolean;
     color?: Color;

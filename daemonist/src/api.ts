@@ -2,7 +2,7 @@ import { Dynalist } from "./dynalist";
 
 export const ENDPOINTS = {
   GET_FILES: "https://dynalist.io/api/v1/file/list",
-  READ_DOCUMENT: "https://dynalist.io/api/v1/doc/read"
+  GET_DOCUMENT: "https://dynalist.io/api/v1/doc/read"
 };
 
 type FailCode =
@@ -33,12 +33,22 @@ export interface GetFilesResponse extends SuccessfulResponse {
   files: Dynalist.File[];
 }
 
-export interface DocumentReadResponse extends SuccessfulResponse {
-  title: string;
-  nodes: Dynalist.Node[];
+export interface DocumentReadNode {
+  id: string;
+  content: string;
+  note: string;
+  created: number;
+  modified: number;
+  children: string[];
+
+  checked?: boolean;
+  checkbox?: boolean;
+  color?: Dynalist.Color;
+  heading?: Dynalist.HeadingLevel;
+  collapsed?: boolean;
 }
 
-export interface NodeKey {
-  fileID: string;
-  nodeID: string;
+export interface DocumentReadResponse extends SuccessfulResponse {
+  title: string;
+  nodes: DocumentReadNode[];
 }
