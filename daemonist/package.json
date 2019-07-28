@@ -2,8 +2,9 @@
   "name": "daemonist",
   "version": "0.1.0",
   "description": "Makes dynalist dynamic.",
-  "main": "index.js",
+  "main": "build/index.js",
   "scripts": {
+    "start": "tsc && node build/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -18,5 +19,9 @@
   "bugs": {
     "url": "https://github.com/tloen/eudaemon/issues"
   },
-  "homepage": "https://github.com/tloen/eudaemon#readme"
+  "homepage": "https://github.com/tloen/eudaemon#readme",
+  "dependencies": {
+    "node-fetch": "^2.6.0",
+    "typescript": "^3.5.3"
+  }
 }
