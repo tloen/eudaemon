@@ -1,8 +1,9 @@
 import { DynalistAPI } from "./session";
+import { Daemonist } from "./daemonist";
 
-const api = new DynalistAPI(process.env.DYNALIST_API_TOKEN);
+const daemonistClient = new Daemonist(process.env.DYNALIST_API_TOKEN);
 
-// api.getFileTree().then(console.log);
-// api.readDocument("HP3Ov2goSBuIPEzMA2T3jRkk").then(console.log);
-// api.getAllDocuments().then(console.log);
-api.getNodeForest().then(console.log);
+// test code
+daemonistClient
+  .getActivatedNodeTrees()
+  .then(x => console.log(JSON.stringify(x)));

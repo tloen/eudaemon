@@ -2,7 +2,9 @@ import { Dynalist } from "./dynalist";
 
 export const ENDPOINTS = {
   GET_FILES: "https://dynalist.io/api/v1/file/list",
-  GET_DOCUMENT: "https://dynalist.io/api/v1/doc/read"
+  GET_DOCUMENT: "https://dynalist.io/api/v1/doc/read",
+  CREATE_FILE: "https://dynalist.io/api/file/create",
+  EDIT_FILE: "https://dynalist.io/api/file/edit"
 };
 
 type FailCode =
@@ -51,4 +53,40 @@ export interface DocumentReadNode {
 export interface DocumentReadResponse extends SuccessfulResponse {
   title: string;
   nodes: DocumentReadNode[];
+}
+
+export interface CreationRequest {
+  document_count: number;
+  folder_count: 0;
+}
+
+export interface CreationResponse extends SuccessfulResponse {
+  folders: string[];
+  documents: string[];
+}
+
+export interface FileEdit {
+  action: "edit";
+  type: Dynalist.FileType;
+  file_id: string;
+  title: string;
+}
+
+export interface FileMove {
+  action: "move";
+  type: Dynalist.FileType;
+  file_id: string;
+  parent_id: string;
+  index: number;
+}
+
+export type FileChange = FileEdit | FileMove;
+
+// TODO: namespace these!
+export interface FileEditRequest {
+  changes: FileChange[];
+}
+
+export interface FileEditResponse extends SuccessfulResponse {
+  results: boolean[];
 }

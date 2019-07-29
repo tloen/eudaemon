@@ -1,6 +1,5 @@
 export namespace Dynalist {
   export type FileType = "document" | "folder";
-
   export interface File {
     id: string;
     title: string;
@@ -40,14 +39,18 @@ export namespace Dynalist {
     note: string;
     created: Date;
     modified: Date;
+    children: NodeKey[];
 
-    children?: NodeKey[];
     checked?: boolean;
     checkbox?: boolean;
     color?: Color;
     heading?: HeadingLevel;
     collapsed?: boolean;
   }
+
+  type Omit<T, K> = Pick<T, Exclude<keyof T, K>>;
+
+  export type NodeTree = Omit<Node, "children"> & { children: NodeTree[] };
 
   export interface Document {
     id: string;

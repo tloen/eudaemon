@@ -3,7 +3,9 @@ import {
   ENDPOINTS,
   DocumentReadResponse,
   SuccessfulResponse,
-  DocumentReadNode
+  DocumentReadNode,
+  CreationResponse,
+  FileEditResponse
 } from "./api";
 import { Dynalist } from "./dynalist";
 import fetch from "node-fetch";
@@ -21,7 +23,25 @@ export class DynalistAPI {
     this.token = token;
   }
 
-  public getNodeForest(): Promise<Dynalist.Node[]> {
+  public getNodeTree(key: Dynalist.NodeKey): Promise<Dynalist.NodeTree> {
+    return this.getDocumentById(key.documentId).then(document => {
+      const { nodes } = document;
+      const nodeMap = new Map<string, Dynalist.Node>(
+        nodes.map((node): [string, Dynalist.Node] => [node.key.nodeId, node])
+      );
+      function dfs(node: Dynalist.Node): Dynalist.NodeTree {
+        if (node.children.length == 0) return { ...node, children: [] };
+        else
+          return {
+            ...node,
+            children: node.children.map(({ nodeId }) => dfs(nodeMap[nodeId]))
+          };
+      }
+      return dfs(nodeMap[key.nodeId]);
+    });
+  }
+
+  public getAllNodes(): Promise<Dynalist.Node[]> {
     return this.getAllDocuments().then(files =>
       files.map(file => file.nodes).flat()
     );
@@ -53,12 +73,17 @@ export class DynalistAPI {
     });
   }
 
-  public getDocumentByTitle(title: string): Promise<Dynalist.Document> {
+  public getDocumentByTitle(
+    title: string,
+    enforceUnique?: boolean
+  ): Promise<Dynalist.Document> {
     return this.getFileTree().then(files => {
       const matchingFiles = files.filter(
         file => file.type === "document" && file.title == title
       );
       if (matchingFiles.length == 0) return undefined;
+      else if (enforceUnique && matchingFiles.length > 1)
+        throw `Multiple files matching the given title (${title}) were found.`;
       else return this.getDocumentById(matchingFiles[0].id);
     });
   }
@@ -100,7 +125,34 @@ export class DynalistAPI {
     );
   }
 
+  public createDocument(title?: string): Promise<string> {
+    throw "createDocument doesn't work (yet); you'll need to do some cookie stuff";
+    return this.postFetch<CreationResponse>(ENDPOINTS.CREATE_FILE, {
+      document_count: 1,
+      folder_count: 0
+    }).then(response => {
+      const fileId = response.documents[0];
+      return title ? this.editFile(fileId, title).then(() => fileId) : fileId;
+    });
+  }
+
+  public editFile(fileId: string, title: string): Promise<void> {
+    return this.postFetch<FileEditResponse>(ENDPOINTS.EDIT_FILE, {
+      changes: [
+        {
+          action: "edit",
+          type: "document",
+          file_id: fileId,
+          title
+        }
+      ]
+    }).then(response => {
+      if (!response.results[0]) throw "Edit failed";
+    });
+  }
+
   // TODO: merge this into getting all docs
+  // TODO: add request to generic
   private async batchPostFetch<T extends SuccessfulResponse>(
     requests: FetchRequest[],
     waitMilliseconds: number
