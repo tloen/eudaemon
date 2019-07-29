@@ -6,7 +6,7 @@ const isActivated = (node: Dynalist.Node) => !!א.exec(node.note);
 const INDEX_TITLE = "(א)";
 
 export class Daemonist {
-  api: DynalistAPI;
+  private api: DynalistAPI;
   constructor(apiToken: string) {
     this.api = new DynalistAPI(apiToken);
   }

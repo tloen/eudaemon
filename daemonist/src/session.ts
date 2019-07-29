@@ -23,32 +23,34 @@ export class DynalistAPI {
     this.token = token;
   }
 
-  public getNodeTree(key: Dynalist.NodeKey): Promise<Dynalist.NodeTree> {
+  public getNodeTree = (key: Dynalist.NodeKey): Promise<Dynalist.NodeTree> => {
     return this.getDocumentById(key.documentId).then(document => {
       const { nodes } = document;
       const nodeMap = new Map<string, Dynalist.Node>(
         nodes.map((node): [string, Dynalist.Node] => [node.key.nodeId, node])
       );
       function dfs(node: Dynalist.Node): Dynalist.NodeTree {
-        if (node.children.length == 0) return { ...node, children: [] };
+        if (node.children.length === 0) return { ...node, children: [] };
         else
           return {
             ...node,
-            children: node.children.map(({ nodeId }) => dfs(nodeMap[nodeId]))
+            children: node.children.map(({ nodeId }) =>
+              dfs(nodeMap.get(nodeId))
+            )
           };
       }
-      return dfs(nodeMap[key.nodeId]);
+      return dfs(nodeMap.get(key.nodeId));
     });
-  }
+  };
 
-  public getAllNodes(): Promise<Dynalist.Node[]> {
+  public getAllNodes = (): Promise<Dynalist.Node[]> => {
     return this.getAllDocuments().then(files =>
       files.map(file => file.nodes).flat()
     );
-  }
+  };
 
   // Limit: 60 reads per minute
-  public async getAllDocuments(): Promise<Dynalist.Document[]> {
+  public getAllDocuments = (): Promise<Dynalist.Document[]> => {
     return this.getFileTree().then(files => {
       const documentFiles = files.filter(file => file.type === "document");
 
@@ -71,12 +73,12 @@ export class DynalistAPI {
           }))
       );
     });
-  }
+  };
 
-  public getDocumentByTitle(
+  public getDocumentByTitle = (
     title: string,
     enforceUnique?: boolean
-  ): Promise<Dynalist.Document> {
+  ): Promise<Dynalist.Document> => {
     return this.getFileTree().then(files => {
       const matchingFiles = files.filter(
         file => file.type === "document" && file.title == title
@@ -86,12 +88,12 @@ export class DynalistAPI {
         throw `Multiple files matching the given title (${title}) were found.`;
       else return this.getDocumentById(matchingFiles[0].id);
     });
-  }
+  };
 
-  private transformNode(
+  private transformNode = (
     rawNode: DocumentReadNode,
     documentId: string
-  ): Dynalist.Node {
+  ): Dynalist.Node => {
     return {
       ...rawNode,
       key: {
@@ -107,9 +109,9 @@ export class DynalistAPI {
           }))
         : []
     };
-  }
+  };
 
-  public getDocumentById(documentId: string): Promise<Dynalist.Document> {
+  public getDocumentById = (documentId: string): Promise<Dynalist.Document> => {
     return this.postFetch(ENDPOINTS.GET_DOCUMENT, {
       file_id: documentId
     }).then((body: DocumentReadResponse) => ({
@@ -117,15 +119,15 @@ export class DynalistAPI {
       nodes: body.nodes.map(rawNode => this.transformNode(rawNode, documentId)),
       title: body.title
     }));
-  }
+  };
 
-  public getFileTree(): Promise<Dynalist.File[]> {
+  public getFileTree = (): Promise<Dynalist.File[]> => {
     return this.postFetch<GetFilesResponse>(ENDPOINTS.GET_FILES).then(
       body => body.files
     );
-  }
+  };
 
-  public createDocument(title?: string): Promise<string> {
+  public createDocument = (title?: string): Promise<string> => {
     throw "createDocument doesn't work (yet); you'll need to do some cookie stuff";
     return this.postFetch<CreationResponse>(ENDPOINTS.CREATE_FILE, {
       document_count: 1,
@@ -134,9 +136,9 @@ export class DynalistAPI {
       const fileId = response.documents[0];
       return title ? this.editFile(fileId, title).then(() => fileId) : fileId;
     });
-  }
+  };
 
-  public editFile(fileId: string, title: string): Promise<void> {
+  public editFile = (fileId: string, title: string): Promise<void> => {
     return this.postFetch<FileEditResponse>(ENDPOINTS.EDIT_FILE, {
       changes: [
         {
@@ -149,14 +151,14 @@ export class DynalistAPI {
     }).then(response => {
       if (!response.results[0]) throw "Edit failed";
     });
-  }
+  };
 
   // TODO: merge this into getting all docs
   // TODO: add request to generic
-  private async batchPostFetch<T extends SuccessfulResponse>(
+  private batchPostFetch = async <T extends SuccessfulResponse>(
     requests: FetchRequest[],
     waitMilliseconds: number
-  ): Promise<T[]> {
+  ): Promise<T[]> => {
     const results: T[] = [];
     console.log(
       `Got ${requests.length} requests with wait time ${waitMilliseconds /
@@ -168,12 +170,12 @@ export class DynalistAPI {
       await new Promise(_ => setTimeout(_, waitMilliseconds));
     }
     return results;
-  }
+  };
 
-  private postFetch<T extends SuccessfulResponse>(
+  private postFetch = <T extends SuccessfulResponse>(
     url: string,
     params?: any
-  ): Promise<T> {
+  ): Promise<T> => {
     console.log(`POST ${url} with params ${JSON.stringify(params)}`);
     return fetch(url, {
       headers: {
@@ -187,5 +189,5 @@ export class DynalistAPI {
         if (body._code !== "Ok") return Promise.reject(body._msg);
         else return body as T;
       });
-  }
+  };
 }
