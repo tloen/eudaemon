@@ -1,3 +1,6 @@
+import { SuccessfulResponse } from "./api";
+
+/* Types representing Dynalist objects. */
 export namespace Dynalist {
   export type FileType = "document" | "folder";
   export interface File {
@@ -57,4 +60,45 @@ export namespace Dynalist {
     title: string;
     nodes: Node[];
   }
+
+  // TODO: move these into api.ts
+  export interface InsertNodeChange {
+    action: "insert";
+    parent_id: string;
+    content: string;
+    note?: string;
+    checked?: boolean;
+    checkbox?: boolean;
+    heading?: Dynalist.HeadingLevel;
+    color?: Dynalist.Color;
+  }
+
+  export interface EditNodeChange {
+    action: "edit";
+    node_id: string;
+    content?: string;
+    note?: string;
+    checked?: string;
+    checkbox?: boolean;
+    heading?: Dynalist.HeadingLevel;
+    color?: Dynalist.Color;
+  }
+
+  export interface MoveNodeChange {
+    action: "move";
+    node_id: string;
+    parent_id: string;
+    index: number;
+  }
+
+  export interface DeleteNodeChange {
+    action: "delete";
+    node_id: string;
+  }
+
+  export type NodeChange =
+    | InsertNodeChange
+    | EditNodeChange
+    | MoveNodeChange
+    | DeleteNodeChange;
 }

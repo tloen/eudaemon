@@ -1,10 +1,13 @@
+/* Types related to Dynalist API calls. */
+
 import { Dynalist } from "./dynalist";
 
 export const ENDPOINTS = {
   GET_FILES: "https://dynalist.io/api/v1/file/list",
   GET_DOCUMENT: "https://dynalist.io/api/v1/doc/read",
   CREATE_FILE: "https://dynalist.io/api/file/create",
-  EDIT_FILE: "https://dynalist.io/api/file/edit"
+  EDIT_FILE: "https://dynalist.io/api/file/edit",
+  EDIT_DOCUMENT: "https://dynalist.io/api/v1/doc/edit"
 };
 
 type FailCode =
@@ -84,9 +87,20 @@ export type FileChange = FileEdit | FileMove;
 
 // TODO: namespace these!
 export interface FileEditRequest {
-  changes: FileChange[];
+  file_id: string;
+  changes: Dynalist.NodeChange[];
 }
 
 export interface FileEditResponse extends SuccessfulResponse {
   results: boolean[];
+}
+
+export interface DocumentChangeRequest {
+  file_id: string;
+  changes: Dynalist.NodeChange[];
+}
+
+export interface DocumentChangeResponse extends SuccessfulResponse {
+  file_id: string;
+  new_node_ids: string[];
 }

@@ -5,7 +5,8 @@ import {
   SuccessfulResponse,
   DocumentReadNode,
   CreationResponse,
-  FileEditResponse
+  FileEditResponse,
+  DocumentChangeResponse
 } from "./api";
 import { Dynalist } from "./dynalist";
 import fetch from "node-fetch";
@@ -15,13 +16,31 @@ interface FetchRequest {
   params?: any;
 }
 
+const DEBUG_DOC_TITLES: string[] = ["__debug"];
 export class DynalistAPI {
   private token: string;
   private cache: Cache;
+  public readonly debug: boolean;
 
-  constructor(token: string) {
+  constructor(token: string, debug: boolean = false) {
     this.token = token;
+    this.debug = debug;
   }
+
+  public editDocument = (
+    documentId: string,
+    changes: Dynalist.NodeChange[]
+  ): Promise<Dynalist.NodeKey[]> => {
+    return this.postFetch<DocumentChangeResponse>(ENDPOINTS.EDIT_DOCUMENT, {
+      file_id: documentId,
+      changes
+    }).then(response =>
+      response.new_node_ids.map(nodeId => ({
+        nodeId,
+        documentId
+      }))
+    );
+  };
 
   public getNodeTree = (key: Dynalist.NodeKey): Promise<Dynalist.NodeTree> => {
     return this.getDocumentById(key.documentId).then(document => {
@@ -44,15 +63,21 @@ export class DynalistAPI {
   };
 
   public getAllNodes = (): Promise<Dynalist.Node[]> => {
-    return this.getAllDocuments().then(files =>
-      files.map(file => file.nodes).flat()
-    );
+    return this.getAllDocuments()
+      .then(files => files.map(file => file.nodes).flat())
+      .then(res => {
+        return res;
+      });
   };
 
   // Limit: 60 reads per minute
   public getAllDocuments = (): Promise<Dynalist.Document[]> => {
     return this.getFileTree().then(files => {
-      const documentFiles = files.filter(file => file.type === "document");
+      const documentFiles = files.filter(
+        file =>
+          file.type === "document" &&
+          (!this.debug || DEBUG_DOC_TITLES.includes(file.title))
+      );
 
       const requests = documentFiles.map(
         (file): FetchRequest => ({

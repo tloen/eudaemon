@@ -1,31 +1,67 @@
 import { Dynalist } from "./dynalist";
 import { DynalistAPI } from "./session";
+import { Daemon } from "./daemon";
 
-const א = /[🏺😈👿🤖א]/;
-const isActivated = (node: Dynalist.Node) => !!א.exec(node.note);
+export const INVOCATION = /#?[🏺😈👿🤖]\((.*)\)/u;
+const isActivated = (node: Dynalist.Node) => !!INVOCATION.exec(node.note);
 const INDEX_TITLE = "(א)";
 
 export class Daemonist {
-  private api: DynalistAPI;
-  constructor(apiToken: string) {
-    this.api = new DynalistAPI(apiToken);
+  public api: DynalistAPI;
+  public daemons: Daemon[] = [];
+
+  constructor(apiToken: string, debug: boolean = false) {
+    this.api = new DynalistAPI(apiToken, debug);
   }
 
-  public getActivatedNodeKeys(): Promise<Dynalist.NodeKey[]> {
-    // definitely cacheable/indexable
-    return this.api
-      .getAllNodes()
-      .then(nodes => nodes.filter(isActivated).map(node => node.key));
+  public registerDaemon(daemon: Daemon) {
+    this.daemons.push(daemon);
   }
 
-  public getActivatedNodeTrees(): Promise<Dynalist.NodeTree[]> {
+  public runAllDaemons = async (): Promise<void> => {
+    for (const daemon of this.daemons) {
+      await this.runDaemon(daemon);
+    }
+  };
+
+  public runDaemon = (daemon: Daemon): Promise<void> =>
+    this.getActivatedNodeTrees()
+      .then(trees =>
+        Promise.all(
+          trees.map(tree =>
+            daemon
+              .transform(tree)
+              .then(changes =>
+                this.api.editDocument(tree.key.documentId, changes)
+              )
+          )
+        )
+      )
+      .then(() => {});
+
+  private getActivatedNodeTrees(): Promise<Dynalist.NodeTree[]> {
     // TODO: check for nested activated nodes
     return this.getActivatedNodeKeys().then(keys =>
       Promise.all(keys.map(this.api.getNodeTree))
     );
   }
 
-  public getStateDocument(): Promise<Dynalist.Document> {
+  private activatedNodeKeyCache: Dynalist.NodeKey[] | undefined = undefined;
+  private getActivatedNodeKeys = (): Promise<Dynalist.NodeKey[]> => {
+    // definitely cacheable/indexable
+    return this.activatedNodeKeyCache
+      ? Promise.resolve(this.activatedNodeKeyCache)
+      : this.api
+          .getAllNodes()
+          .then(
+            nodes =>
+              (this.activatedNodeKeyCache = nodes
+                .filter(isActivated)
+                .map(node => node.key))
+          );
+  };
+
+  private getStateDocument(): Promise<Dynalist.Document> {
     return this.api
       .getDocumentByTitle(INDEX_TITLE, true)
       .then(
