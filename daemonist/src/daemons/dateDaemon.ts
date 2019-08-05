@@ -1,5 +1,5 @@
 import { INVOCATION } from "../daemonist";
-import { Dynalist } from "../dynalist";
+import { DynalistModel } from "../dynalist-model";
 import { NamedDaemon } from "../daemon";
 
 export class DateDaemon extends NamedDaemon {
@@ -8,8 +8,8 @@ export class DateDaemon extends NamedDaemon {
   }
 
   public transform = (
-    root: Dynalist.NodeTree
-  ): Promise<Dynalist.NodeChange[]> =>
+    root: DynalistModel.NodeTree
+  ): Promise<DynalistModel.NodeChange[]> =>
     Promise.resolve([
       {
         action: "edit",

@@ -1,20 +1,22 @@
-import { Dynalist } from "./dynalist";
+import { DynalistModel } from "./dynalist-model";
 import { Daemonist, INVOCATION } from "./daemonist";
 
 export interface Daemon {
   transform: (
-    root: Dynalist.NodeTree
+    root: DynalistModel.NodeTree
   ) => //daemonist: Daemonist // should I refactor this out?
-  Promise<Dynalist.NodeChange[]>;
-  isSummoned: (root: Dynalist.NodeTree) => boolean;
+  Promise<DynalistModel.NodeChange[]>;
+  isSummoned: (root: DynalistModel.NodeTree) => boolean;
 }
 
 export abstract class NamedDaemon implements Daemon {
   constructor(public readonly name: string) {}
 
-  public transform: (root: Dynalist.NodeTree) => Promise<Dynalist.NodeChange[]>;
+  public transform: (
+    root: DynalistModel.NodeTree
+  ) => Promise<DynalistModel.NodeChange[]>;
 
-  public isSummoned = (root: Dynalist.NodeTree): boolean =>
+  public isSummoned = (root: DynalistModel.NodeTree): boolean =>
     INVOCATION.exec(root.note)[1]
       .split(`[, ]`)
       .includes(this.name);

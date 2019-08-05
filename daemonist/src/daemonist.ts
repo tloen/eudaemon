@@ -1,17 +1,17 @@
-import { Dynalist } from "./dynalist";
-import { DynalistAPI } from "./session";
+import { DynalistModel } from "./dynalist-model";
+import { DynalistClient } from "./api/dynalist-client";
 import { Daemon } from "./daemon";
 
 export const INVOCATION = /#?[🏺😈👿🤖]\((.*)\)/u;
-const isActivated = (node: Dynalist.Node) => !!INVOCATION.exec(node.note);
+const isActivated = (node: DynalistModel.Node) => !!INVOCATION.exec(node.note);
 const INDEX_TITLE = "(א)";
 
 export class Daemonist {
-  public api: DynalistAPI;
+  public api: DynalistClient;
   public daemons: Daemon[] = [];
 
   constructor(apiToken: string, debug: boolean = false) {
-    this.api = new DynalistAPI(apiToken, debug);
+    this.api = new DynalistClient(apiToken, debug);
   }
 
   public registerDaemon(daemon: Daemon) {
@@ -39,15 +39,17 @@ export class Daemonist {
       )
       .then(() => {});
 
-  private getActivatedNodeTrees(): Promise<Dynalist.NodeTree[]> {
+  private getActivatedNodeTrees(): Promise<DynalistModel.NodeTree[]> {
     // TODO: check for nested activated nodes
     return this.getActivatedNodeKeys().then(keys =>
       Promise.all(keys.map(this.api.getNodeTree))
     );
   }
 
-  private activatedNodeKeyCache: Dynalist.NodeKey[] | undefined = undefined;
-  private getActivatedNodeKeys = (): Promise<Dynalist.NodeKey[]> => {
+  private activatedNodeKeyCache:
+    | DynalistModel.NodeKey[]
+    | undefined = undefined;
+  private getActivatedNodeKeys = (): Promise<DynalistModel.NodeKey[]> => {
     // definitely cacheable/indexable
     return this.activatedNodeKeyCache
       ? Promise.resolve(this.activatedNodeKeyCache)
@@ -61,13 +63,7 @@ export class Daemonist {
           );
   };
 
-  private getStateDocument(): Promise<Dynalist.Document> {
-    return this.api
-      .getDocumentByTitle(INDEX_TITLE, true)
-      .then(
-        response =>
-          response ||
-          this.api.createDocument(INDEX_TITLE).then(this.api.getDocumentById)
-      );
+  private getStateDocument(): Promise<DynalistModel.Document> {
+    return this.api.getDocumentByTitle(INDEX_TITLE, true);
   }
 }

@@ -1,7 +1,5 @@
-import { SuccessfulResponse } from "./api";
-
-/* Types representing Dynalist objects. */
-export namespace Dynalist {
+/* Representations of Dynalist objects. */
+export namespace DynalistModel {
   export type FileType = "document" | "folder";
   export interface File {
     id: string;
@@ -69,8 +67,8 @@ export namespace Dynalist {
     note?: string;
     checked?: boolean;
     checkbox?: boolean;
-    heading?: Dynalist.HeadingLevel;
-    color?: Dynalist.Color;
+    heading?: DynalistModel.HeadingLevel;
+    color?: DynalistModel.Color;
   }
 
   export interface EditNodeChange {
@@ -80,8 +78,8 @@ export namespace Dynalist {
     note?: string;
     checked?: string;
     checkbox?: boolean;
-    heading?: Dynalist.HeadingLevel;
-    color?: Dynalist.Color;
+    heading?: DynalistModel.HeadingLevel;
+    color?: DynalistModel.Color;
   }
 
   export interface MoveNodeChange {
