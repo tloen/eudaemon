@@ -1,7 +1,6 @@
 import { API } from "./api-model";
 import { APIDispatcher } from "./dispatcher";
 import { DynalistModel } from "../dynalist-model";
-import fetch from "node-fetch";
 
 interface FetchRequest {
   url: string;
@@ -18,90 +17,142 @@ export class DynalistClient {
     this.dispatcher = new APIDispatcher();
   }
 
-  public editDocument = (
+  public applyChanges = async (newTrees: DynalistModel.PotentialNodeTree[]) => {
+    console.log("applyChanges called");
+    for (const newTree of newTrees) {
+      const oldTree = await this.getNodeTree(newTree.key);
+      const additions: API.DocumentChange.NodeChange[] = [];
+
+      const parent: number[] = [-1];
+      const flat: DynalistModel.AbstractNodeTree[] = [newTree];
+      const index: number[] = [0];
+
+      const bfs = (node: DynalistModel.AbstractNodeTree, idx: number) => {
+        for (let i = 0; i < node.children.length; ++i) {
+          const child = node.children[i];
+          const childIdx = flat.length;
+          flat.push(child);
+          parent.push(idx);
+          index.push(i);
+          bfs(child, childIdx);
+        }
+      };
+      bfs(newTree, 0);
+      for (const child of flat.slice(1)) {
+        const { content, note, checked, checkbox, heading, color } = child;
+        additions.push({
+          action: "insert",
+          parent_id: newTree.key.nodeId,
+          content,
+          note,
+          checked,
+          checkbox,
+          heading,
+          color
+        });
+      }
+      const newKeys = await this.editDocument(
+        newTree.key.documentId,
+        additions
+      );
+      const deletionsAndMoves: API.DocumentChange.NodeChange[] = [];
+      for (const child of oldTree.children) {
+        deletionsAndMoves.push({
+          action: "delete",
+          node_id: child.key.nodeId
+        });
+      }
+      for (let i = 1; i < flat.length; ++i) {
+        deletionsAndMoves.push({
+          action: "move",
+          node_id: newKeys[i].nodeId,
+          parent_id: newKeys[parent[i]].nodeId,
+          index: index[i]
+        });
+      }
+      await this.editDocument(newTree.key.documentId, deletionsAndMoves);
+    }
+  };
+
+  public editDocument = async (
     documentId: string,
-    changes: DynalistModel.NodeChange[]
+    changes: API.DocumentChange.NodeChange[]
   ): Promise<DynalistModel.NodeKey[]> => {
-    return this.postFetch<
+    const response = await this.postFetch<
       API.DocumentChange.Request,
       API.DocumentChange.Response
     >(API.DocumentChange.ENDPOINT, {
       file_id: documentId,
       changes
-    }).then(response =>
-      response.new_node_ids.map(nodeId => ({
-        nodeId,
-        documentId
-      }))
-    );
-  };
-
-  public getNodeTree = (
-    key: DynalistModel.NodeKey
-  ): Promise<DynalistModel.NodeTree> => {
-    return this.getDocumentById(key.documentId).then(document => {
-      const { nodes } = document;
-      const nodeMap = new Map<string, DynalistModel.Node>(
-        nodes.map(
-          (node): [string, DynalistModel.Node] => [node.key.nodeId, node]
-        )
-      );
-      function dfs(node: DynalistModel.Node): DynalistModel.NodeTree {
-        if (node.children.length === 0) return { ...node, children: [] };
-        else
-          return {
-            ...node,
-            children: node.children.map(({ nodeId }) =>
-              dfs(nodeMap.get(nodeId))
-            )
-          };
-      }
-      return dfs(nodeMap.get(key.nodeId));
     });
+    return response.new_node_ids.map(nodeId => ({
+      nodeId,
+      documentId
+    }));
   };
 
-  public getAllNodes = (): Promise<DynalistModel.Node[]> => {
-    return this.getAllDocuments()
-      .then(files => files.map(file => file.nodes).flat())
-      .then(res => {
-        return res;
-      });
+  public getNodeTree = async (
+    key: DynalistModel.NodeKey
+  ): Promise<DynalistModel.ConcreteNodeTree> => {
+    console.log("getNodeTree called...");
+    let document = await this.getDocumentById(key.documentId);
+    const { nodes } = document;
+    const nodeMap = new Map<string, DynalistModel.ConcreteNode>(
+      nodes.map(
+        (node): [string, DynalistModel.ConcreteNode] => [node.key.nodeId, node]
+      )
+    );
+    function dfs(
+      node: DynalistModel.ConcreteNode
+    ): DynalistModel.ConcreteNodeTree {
+      if (node.children.length === 0) return { ...node, children: [] };
+      else
+        return {
+          ...node,
+          children: node.children.map(({ nodeId }) => dfs(nodeMap.get(nodeId)))
+        };
+    }
+    return dfs(nodeMap.get(key.nodeId));
+  };
+
+  public getAllNodes = async (): Promise<DynalistModel.ConcreteNode[]> => {
+    const files = await this.getAllDocuments();
+    const res = files.map(file => file.nodes).flat();
+    return res;
   };
 
   // Limit: 60 reads per minute
-  public getAllDocuments = (): Promise<DynalistModel.Document[]> => {
-    return this.getFileTree().then(files => {
-      const documentIds = files
-        .filter(
-          file =>
-            file.type === "document" &&
-            (!this.debug || DEBUG_DOC_TITLES.includes(file.title))
-        )
-        .map(file => file.id);
-
-      return Promise.all(documentIds.map(this.getDocumentById));
-    });
+  public getAllDocuments = async (): Promise<DynalistModel.Document[]> => {
+    const files = await this.getFileTree();
+    const documentIds = files
+      .filter(
+        file =>
+          file.type === "document" &&
+          (!this.debug || DEBUG_DOC_TITLES.includes(file.title))
+      )
+      .map(file => file.id);
+    console.log(`Getting ${documentIds.length} documents...`);
+    return Promise.all(documentIds.map(this.getDocumentById));
   };
 
-  public getDocumentByTitle = (
+  public getDocumentByTitle = async (
     title: string,
     enforceUnique?: boolean
   ): Promise<DynalistModel.Document> => {
-    return this.getFileTree().then(files => {
-      const matchingFiles = files.filter(
-        file => file.type === "document" && file.title == title
-      );
-      if (matchingFiles.length == 0) return undefined;
-      else if (enforceUnique && matchingFiles.length > 1)
-        throw `Multiple files matching the given title (${title}) were found.`;
-      else return this.getDocumentById(matchingFiles[0].id);
-    });
+    const files = await this.getFileTree();
+    const matchingFiles = files.filter(
+      file => file.type === "document" && file.title == title
+    );
+    if (matchingFiles.length == 0) return undefined;
+    else if (enforceUnique && matchingFiles.length > 1)
+      throw `Multiple files matching the given title (${title}) were found.`;
+    else return this.getDocumentById(matchingFiles[0].id);
   };
 
   private transformNode = (
     rawNode: API.DocumentRead.Node,
     documentId: string
-  ): DynalistModel.Node => {
+  ): DynalistModel.ConcreteNode => {
     return {
       ...rawNode,
       key: {
@@ -119,62 +170,63 @@ export class DynalistClient {
     };
   };
 
-  public getDocumentById = (
+  public getDocumentById = async (
     documentId: string
   ): Promise<DynalistModel.Document> => {
-    return this.postFetch<API.DocumentRead.Request, API.DocumentRead.Response>(
-      API.DocumentRead.ENDPOINT,
-      {
-        file_id: documentId
-      }
-    ).then(body => ({
+    const body = await this.postFetch<
+      API.DocumentRead.Request,
+      API.DocumentRead.Response
+    >(API.DocumentRead.ENDPOINT, {
+      file_id: documentId
+    });
+    return {
       id: documentId,
       nodes: body.nodes.map(rawNode => this.transformNode(rawNode, documentId)),
       title: body.title
-    }));
+    };
   };
 
-  public getFileTree = (): Promise<DynalistModel.File[]> => {
-    return this.postFetch<API.GetFiles.Request, API.GetFiles.Response>(
-      API.GetFiles.ENDPOINT
-    ).then(body => body.files);
+  public getFileTree = async (): Promise<DynalistModel.File[]> => {
+    const body = await this.postFetch<
+      API.GetFiles.Request,
+      API.GetFiles.Response
+    >(API.GetFiles.ENDPOINT);
+    return body.files;
   };
 
-  public editFile = (fileId: string, title: string): Promise<void> => {
-    return this.postFetch<API.FileEdit.Request, API.FileEdit.Response>(
-      API.FileEdit.ENDPOINT,
-      {
-        file_id: fileId,
-        changes: [
-          {
-            action: "edit",
-            type: "document",
-            file_id: fileId,
-            title
-          }
-        ]
-      }
-    ).then(response => {
-      if (!response.results[0]) throw "Edit failed";
+  public editFile = async (fileId: string, title: string): Promise<void> => {
+    const response = await this.postFetch<
+      API.FileEdit.Request,
+      API.FileEdit.Response
+    >(API.FileEdit.ENDPOINT, {
+      file_id: fileId,
+      changes: [
+        {
+          action: "edit",
+          type: "document",
+          file_id: fileId,
+          title
+        }
+      ]
     });
+    if (!response.results[0]) throw "Edit failed";
   };
 
-  private postFetch = <Request, Response extends API.SuccessfulResponse>(
+  private postFetch = async <Request, Response extends API.SuccessfulResponse>(
     url: string,
     params?: Request
   ): Promise<Response> => {
     console.log(`POST ${url} with params ${JSON.stringify(params)}`);
-    return fetch(url, {
+    const response = await this.dispatcher.fetch(url, {
       headers: {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({ token: this.token, ...params }),
       method: "POST"
-    })
-      .then(response => response.json())
-      .then(body => {
-        if (body._code !== "Ok") return Promise.reject(body._msg);
-        else return body as Response;
-      });
+    });
+    const body = await response.json();
+    console.log(body);
+    if (body._code !== "Ok") return Promise.reject(body._msg);
+    else return body as Response;
   };
 }

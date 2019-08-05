@@ -95,11 +95,52 @@ export namespace API {
   }
 
   export namespace DocumentChange {
+    // TODO: move these into api.ts
+    export interface InsertNodeChange {
+      action: "insert";
+      parent_id: string;
+      content: string;
+      note?: string;
+      checked?: boolean;
+      checkbox?: boolean;
+      heading?: DynalistModel.HeadingLevel;
+      color?: DynalistModel.Color;
+    }
+
+    export interface EditNodeChange {
+      action: "edit";
+      node_id: string;
+      content?: string;
+      note?: string;
+      checked?: string;
+      checkbox?: boolean;
+      heading?: DynalistModel.HeadingLevel;
+      color?: DynalistModel.Color;
+    }
+
+    export interface MoveNodeChange {
+      action: "move";
+      node_id: string;
+      parent_id: string;
+      index: number;
+    }
+
+    export interface DeleteNodeChange {
+      action: "delete";
+      node_id: string;
+    }
+
+    export type NodeChange =
+      | InsertNodeChange
+      | EditNodeChange
+      | MoveNodeChange
+      | DeleteNodeChange;
+
     export const ENDPOINT = "https://dynalist.io/api/v1/doc/edit";
 
     export interface Request {
       file_id: string;
-      changes: DynalistModel.NodeChange[];
+      changes: NodeChange[];
     }
 
     export interface Response extends SuccessfulResponse {

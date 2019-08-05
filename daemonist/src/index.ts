@@ -8,5 +8,5 @@ const daemonistClient = new Daemonist(process.env.DYNALIST_API_TOKEN, true);
 
 daemonistClient.registerDaemon(new DateDaemon());
 daemonistClient.runAllDaemons().then(() => {
-  setInterval(daemonistClient.runAllDaemons, 2000);
+  setInterval(daemonistClient.runAllDaemons, 1000000);
 });

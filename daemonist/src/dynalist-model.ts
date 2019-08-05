@@ -34,13 +34,13 @@ export namespace DynalistModel {
     documentId: string;
     nodeId: string;
   }
-  export interface Node {
-    key: NodeKey;
+
+  export interface AbstractNode {
     content: string;
     note: string;
     created: Date;
     modified: Date;
-    children: NodeKey[];
+    children: any[];
 
     checked?: boolean;
     checkbox?: boolean;
@@ -48,55 +48,28 @@ export namespace DynalistModel {
     heading?: HeadingLevel;
     collapsed?: boolean;
   }
+  export interface ConcreteNode extends AbstractNode {
+    key: NodeKey;
+    children: NodeKey[];
+  }
 
   type Omit<T, K> = Pick<T, Exclude<keyof T, K>>;
 
-  export type NodeTree = Omit<Node, "children"> & { children: NodeTree[] };
+  export interface AbstractNodeTree extends AbstractNode {
+    children: AbstractNodeTree[];
+  }
+
+  export interface PotentialNodeTree extends AbstractNodeTree {
+    key: NodeKey;
+  }
+
+  export interface ConcreteNodeTree extends PotentialNodeTree {
+    children: ConcreteNodeTree[];
+  }
 
   export interface Document {
     id: string;
     title: string;
-    nodes: Node[];
+    nodes: ConcreteNode[];
   }
-
-  // TODO: move these into api.ts
-  export interface InsertNodeChange {
-    action: "insert";
-    parent_id: string;
-    content: string;
-    note?: string;
-    checked?: boolean;
-    checkbox?: boolean;
-    heading?: DynalistModel.HeadingLevel;
-    color?: DynalistModel.Color;
-  }
-
-  export interface EditNodeChange {
-    action: "edit";
-    node_id: string;
-    content?: string;
-    note?: string;
-    checked?: string;
-    checkbox?: boolean;
-    heading?: DynalistModel.HeadingLevel;
-    color?: DynalistModel.Color;
-  }
-
-  export interface MoveNodeChange {
-    action: "move";
-    node_id: string;
-    parent_id: string;
-    index: number;
-  }
-
-  export interface DeleteNodeChange {
-    action: "delete";
-    node_id: string;
-  }
-
-  export type NodeChange =
-    | InsertNodeChange
-    | EditNodeChange
-    | MoveNodeChange
-    | DeleteNodeChange;
 }

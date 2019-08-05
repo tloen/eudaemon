@@ -1,9 +1,12 @@
 import { DynalistModel } from "./dynalist-model";
 import { DynalistClient } from "./api/dynalist-client";
 import { Daemon } from "./daemon";
+import { MutableConcreteNodeTree } from "./api/tree-util";
+import { API } from "./api/api-model";
 
 export const INVOCATION = /#?[🏺😈👿🤖]\((.*)\)/u;
-const isActivated = (node: DynalistModel.Node) => !!INVOCATION.exec(node.note);
+const isActivated = (node: DynalistModel.ConcreteNode) =>
+  !!INVOCATION.exec(node.note);
 const INDEX_TITLE = "(א)";
 
 export class Daemonist {
@@ -24,26 +27,30 @@ export class Daemonist {
     }
   };
 
-  public runDaemon = (daemon: Daemon): Promise<void> =>
-    this.getActivatedNodeTrees()
-      .then(trees =>
-        Promise.all(
-          trees.map(tree =>
-            daemon
-              .transform(tree)
-              .then(changes =>
-                this.api.editDocument(tree.key.documentId, changes)
-              )
-          )
-        )
+  public runDaemon = async (daemon: Daemon): Promise<void> => {
+    console.log("Running daemon...");
+    const trees = await this.getActivatedNodeTrees();
+    console.log("Got activate node trees.");
+    await Promise.all(
+      trees.map(tree =>
+        daemon.transform(tree, this.api).then(this.api.applyChanges)
       )
-      .then(() => {});
-
-  private getActivatedNodeTrees(): Promise<DynalistModel.NodeTree[]> {
-    // TODO: check for nested activated nodes
-    return this.getActivatedNodeKeys().then(keys =>
-      Promise.all(keys.map(this.api.getNodeTree))
     );
+  };
+
+  private async getActivatedNodeTrees(): Promise<
+    DynalistModel.ConcreteNodeTree[]
+  > {
+    console.log("Getting activated node trees...");
+    // TODO: check for nested activated nodes
+    const keys = await this.getActivatedNodeKeys();
+    console.log(`Got ${keys.length} keys.`);
+    for (const key of keys) {
+      console.log(key);
+    }
+    const trees = await Promise.all(keys.map(this.api.getNodeTree));
+    console.log(`Got ${trees.length} trees.`);
+    return trees;
   }
 
   private activatedNodeKeyCache:
