@@ -1,6 +1,7 @@
 import { API } from "./api-model";
 import { APIDispatcher } from "./dispatcher";
 import { DynalistModel } from "../dynalist-model";
+import * as _ from "lodash";
 
 interface FetchRequest {
   url: string;
@@ -18,11 +19,26 @@ export class DynalistClient {
   }
 
   public applyChanges = async (newTrees: DynalistModel.PotentialNodeTree[]) => {
-    console.log("applyChanges called");
+    console.log("applyChanges called...");
     for (const newTree of newTrees) {
       const oldTree = await this.getNodeTree(newTree.key);
-      const additions: API.DocumentChange.NodeChange[] = [];
+      const rootAndAdditions: API.DocumentChange.NodeChange[] = [
+        {
+          action: "edit",
+          node_id: oldTree.key.nodeId,
+          content: "", // default
+          ..._.pick<DynalistModel.PotentialNodeTree>(newTree, [
+            "content",
+            "note",
+            "checked",
+            "checkbox",
+            "heading",
+            "color"
+          ])
+        }
+      ];
 
+      // competitive programming habits die hard
       const parent: number[] = [-1];
       const flat: DynalistModel.AbstractNodeTree[] = [newTree];
       const index: number[] = [0];
@@ -38,22 +54,25 @@ export class DynalistClient {
         }
       };
       bfs(newTree, 0);
+      console.log(flat);
       for (const child of flat.slice(1)) {
         const { content, note, checked, checkbox, heading, color } = child;
-        additions.push({
+        rootAndAdditions.push({
           action: "insert",
           parent_id: newTree.key.nodeId,
-          content,
-          note,
-          checked,
-          checkbox,
-          heading,
-          color
+          content: "", //default
+          ..._.pick<DynalistModel.AbstractNodeTree>(child, [
+            "content",
+            "note",
+            "checked",
+            "checkbox",
+            "heading",
+            "color"
+          ])
         });
       }
-      const newKeys = await this.editDocument(
-        newTree.key.documentId,
-        additions
+      const newKeys = [newTree.key].concat(
+        await this.editDocument(newTree.key.documentId, rootAndAdditions)
       );
       const deletionsAndMoves: API.DocumentChange.NodeChange[] = [];
       for (const child of oldTree.children) {
@@ -62,6 +81,7 @@ export class DynalistClient {
           node_id: child.key.nodeId
         });
       }
+
       for (let i = 1; i < flat.length; ++i) {
         deletionsAndMoves.push({
           action: "move",
@@ -179,9 +199,26 @@ export class DynalistClient {
     >(API.DocumentRead.ENDPOINT, {
       file_id: documentId
     });
+    // strip extra nodes from document
+    const nodes = body.nodes.map(rawNode =>
+      this.transformNode(rawNode, documentId)
+    );
+    const nodeMap = new Map<string, DynalistModel.ConcreteNode>(
+      nodes.map(
+        (node): [string, DynalistModel.ConcreteNode] => [node.key.nodeId, node]
+      )
+    );
+    const rootedIds = [];
+    function dfs(nodeId: string) {
+      for (const child of nodeMap.get(nodeId).children) {
+        dfs(child.nodeId);
+      }
+      rootedIds.push(nodeId);
+    }
+    dfs("root");
     return {
       id: documentId,
-      nodes: body.nodes.map(rawNode => this.transformNode(rawNode, documentId)),
+      nodes: nodes.filter(node => rootedIds.includes(node.key.nodeId)),
       title: body.title
     };
   };
@@ -225,7 +262,6 @@ export class DynalistClient {
       method: "POST"
     });
     const body = await response.json();
-    console.log(body);
     if (body._code !== "Ok") return Promise.reject(body._msg);
     else return body as Response;
   };

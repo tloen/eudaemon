@@ -110,9 +110,9 @@ export namespace API {
     export interface EditNodeChange {
       action: "edit";
       node_id: string;
-      content?: string;
+      content: string;
       note?: string;
-      checked?: string;
+      checked?: boolean;
       checkbox?: boolean;
       heading?: DynalistModel.HeadingLevel;
       color?: DynalistModel.Color;
