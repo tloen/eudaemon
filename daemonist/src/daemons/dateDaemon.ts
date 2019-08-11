@@ -1,9 +1,10 @@
-import { INVOCATION } from "../daemonist";
-import { DynalistModel } from "../dynalist-model";
-import { NamedDaemon } from "../daemon";
-import { MutableConcreteNodeTree } from "../api/tree-util";
+import { DynalistModel } from "../dynalist/dynalist-model";
+import { NamedDaemon } from "../daemonist/daemon";
+import { MutablePotentialNodeTree } from "../dynalist/tree-util";
+import { MutableDaemonistNodeTree } from "../daemonist/daemon-node";
 
-export class DateDaemon extends NamedDaemon {
+export class DateDaemon extends NamedDaemon<{}> {
+  public defaultState = {};
   constructor(name?: string) {
     super(name || "date");
   }
@@ -11,9 +12,9 @@ export class DateDaemon extends NamedDaemon {
   public transform = async (
     root: DynalistModel.PotentialNodeTree
   ): Promise<DynalistModel.PotentialNodeTree[]> => {
-    const mutable_root = new MutableConcreteNodeTree(root);
+    const mutable_root = new MutableDaemonistNodeTree(root, this.defaultState);
     mutable_root.updateProperties({
-      note: `${INVOCATION.exec(root.note)[0]}\n Last updated ${Date()}`
+      note: `${mutable_root.invocationString}\nLast updated ${Date()}`
     });
     return [await mutable_root];
   };

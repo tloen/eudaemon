@@ -1,7 +1,8 @@
 import { API } from "./api-model";
 import { APIDispatcher } from "./dispatcher";
-import { DynalistModel } from "../dynalist-model";
+import { DynalistModel } from "../dynalist/dynalist-model";
 import * as _ from "lodash";
+import { MutablePotentialNodeTree } from "../dynalist/tree-util";
 
 interface FetchRequest {
   url: string;
@@ -16,6 +17,12 @@ export class DynalistClient {
     this.token = token;
     this.debug = debug;
     this.dispatcher = new APIDispatcher();
+  }
+
+  public async getMutableNodeTreeByKey(
+    key: DynalistModel.NodeKey
+  ): Promise<MutablePotentialNodeTree> {
+    return new MutablePotentialNodeTree(await this.getNodeTree(key));
   }
 
   public applyChanges = async (newTrees: DynalistModel.PotentialNodeTree[]) => {
@@ -54,7 +61,6 @@ export class DynalistClient {
         }
       };
       bfs(newTree, 0);
-      console.log(flat);
       for (const child of flat.slice(1)) {
         const { content, note, checked, checkbox, heading, color } = child;
         rootAndAdditions.push({

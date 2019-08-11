@@ -1,6 +1,6 @@
 /* Representations of Dynalist API calls. */
 
-import { DynalistModel } from "../dynalist-model";
+import { DynalistModel } from "../dynalist/dynalist-model";
 
 export namespace API {
   type FailCode =

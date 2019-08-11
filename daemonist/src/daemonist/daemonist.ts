@@ -1,13 +1,13 @@
-import { DynalistModel } from "./dynalist-model";
-import { DynalistClient } from "./api/dynalist-client";
+import { DynalistModel } from "../dynalist/dynalist-model";
+import { DynalistClient } from "../api/dynalist-client";
 import { Daemon } from "./daemon";
-import { MutableConcreteNodeTree } from "./api/tree-util";
-import { API } from "./api/api-model";
+import { MutableDaemonistNodeTree } from "./daemon-node";
+import { MutablePotentialNodeTree } from "../dynalist/tree-util";
 
-export const INVOCATION = /#?[🏺😈👿🤖]\((.*)\)/u;
+export const INVOCATION = /#?[🏺😈👿🤖]\(([a-zA-Z, 0-9_]*)\)/u;
 const isActivated = (node: DynalistModel.ConcreteNode) =>
-  !!INVOCATION.exec(node.note);
-const INDEX_TITLE = "(א)";
+  INVOCATION.exec(node.note) !== null;
+export const STATE = /\[(.*)\]\(㊙️\)/;
 
 export class Daemonist {
   public api: DynalistClient;
@@ -33,7 +33,12 @@ export class Daemonist {
     console.log("Got activate node trees.");
     await Promise.all(
       trees.map(tree =>
-        daemon.transform(tree, this.api).then(this.api.applyChanges)
+        daemon
+          .transform(
+            new MutableDaemonistNodeTree(tree, daemon.defaultState),
+            this.api
+          )
+          .then(this.api.applyChanges)
       )
     );
   };
@@ -69,8 +74,4 @@ export class Daemonist {
                 .map(node => node.key))
           );
   };
-
-  private getStateDocument(): Promise<DynalistModel.Document> {
-    return this.api.getDocumentByTitle(INDEX_TITLE, true);
-  }
 }

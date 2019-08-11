@@ -1,5 +1,4 @@
-import { DynalistModel } from "../dynalist-model";
-import { API } from "./api-model";
+import { DynalistModel } from "./dynalist-model";
 
 export class MutableNodeTree implements DynalistModel.AbstractNodeTree {
   children: MutableNodeTree[];
@@ -19,23 +18,31 @@ export class MutableNodeTree implements DynalistModel.AbstractNodeTree {
       ...inherentProperties,
       children: children.map(tree => new MutableNodeTree(tree))
     };
-    Object.assign(this, tree); // sigh
+    Object.assign(this, transformedTree); // sigh
   }
 
   public updateProperties(props: Partial<DynalistModel.AbstractNodeTree>) {
     Object.assign(this, props);
   }
 
-  public removeChild = (index: number) => {
+  public removeChild(index: number) {
     this.children.splice(index, 1);
-  };
+  }
 
-  public pushSubtree = (tree: DynalistModel.AbstractNodeTree) => {
+  public pushSubtree(tree: DynalistModel.AbstractNodeTree) {
     this.children.push(new MutableNodeTree(tree));
-  };
+  }
+
+  public deepClone(): MutableNodeTree {
+    var clone = new MutableNodeTree(this);
+    for (let child of clone.children) {
+      child = child.deepClone();
+    }
+    return clone;
+  }
 }
 
-export class MutableConcreteNodeTree extends MutableNodeTree
+export class MutablePotentialNodeTree extends MutableNodeTree
   implements DynalistModel.PotentialNodeTree {
   key: DynalistModel.NodeKey;
 

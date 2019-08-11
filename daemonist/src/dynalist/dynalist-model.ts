@@ -55,14 +55,17 @@ export namespace DynalistModel {
 
   type Omit<T, K> = Pick<T, Exclude<keyof T, K>>;
 
+  /** Not identified with any position in Dynalist. */
   export interface AbstractNodeTree extends AbstractNode {
     children: AbstractNodeTree[];
   }
 
+  /** Root is identified with existing Dynalist nodes. */
   export interface PotentialNodeTree extends AbstractNodeTree {
     key: NodeKey;
   }
 
+  /** Entire tree exists in Dynalist. */
   export interface ConcreteNodeTree extends PotentialNodeTree {
     children: ConcreteNodeTree[];
   }

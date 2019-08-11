@@ -1,0 +1,5 @@
+/* If using Dynalist Pro, paste this in to hide stat */
+
+a[href*="㊙️"] {
+  display: none;
+}
